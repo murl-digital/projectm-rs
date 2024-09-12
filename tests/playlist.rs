@@ -5,9 +5,9 @@ mod playlist {
 
     #[test]
     fn playlist() {
-        let projectm = ProjectM::create();
-        let playlist = Playlist::create(projectm);
-        assert_eq!(playlist.is_empty(), true);
+        let mut projectm = ProjectM::new();
+        let playlist = Playlist::create(&mut projectm);
+        assert!(playlist.is_empty());
 
         // add ../presets to playlist
         // get absolute path to ../presets

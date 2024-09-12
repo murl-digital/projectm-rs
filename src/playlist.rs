@@ -13,13 +13,12 @@ pub struct Playlist {
 
 impl Playlist {
     /// Create a new playlist for [Projectm](ProjectMHandle)
-    pub fn create(projectm: &ProjectM) -> Playlist {
-        let projectm = projectm.get_instance();
-        let instance = projectm.borrow_mut();
+    pub fn create(projectm: &mut ProjectM) -> Playlist {
+        let instance = projectm.instance_mut();
 
         let playlist;
         unsafe {
-            playlist = ffi::projectm_playlist_create(*instance);
+            playlist = ffi::projectm_playlist_create(instance.0);
         }
         Playlist {
             playlist,

@@ -1,4 +1,8 @@
-use std::ffi::CString;
+use std::{
+    ffi::{CString, OsStr},
+    os::unix::ffi::OsStrExt,
+    path::PathBuf,
+};
 
 use super::{ProjectMHandle, ProjectMTouchType};
 
@@ -21,11 +25,15 @@ pub(crate) unsafe fn destroy(instance: &mut ProjectMHandle) {
 
 pub(crate) fn load_preset_file(
     instance: &mut ProjectMHandle,
-    filename: &str,
+    filename: &OsStr,
     smooth_transition: bool,
 ) {
     unsafe {
-        ffi::projectm_load_preset_file(instance.0, filename.as_ptr() as *mut i8, smooth_transition)
+        ffi::projectm_load_preset_file(
+            instance.0,
+            filename.as_bytes().as_ptr() as *const i8,
+            smooth_transition,
+        )
     };
 }
 
@@ -139,12 +147,12 @@ pub(crate) fn set_preset_switch_failed_event_callback<F: FnMut(String, String)>(
 
 pub(crate) fn set_texture_search_paths(
     instance: &mut ProjectMHandle,
-    texture_search_paths: &[String],
+    texture_search_paths: &[PathBuf],
     count: usize,
 ) {
     let texture_search_paths_cstr: Vec<_> = texture_search_paths
         .iter()
-        .map(|arg| CString::new(arg.as_str()).unwrap())
+        .map(|arg| CString::new(arg.as_os_str().as_bytes()).unwrap())
         .collect();
 
     let mut texture_search_paths_pointer: Vec<_> = texture_search_paths_cstr
@@ -313,10 +321,9 @@ pub(crate) fn touch(
     x: f32,
     y: f32,
     pressure: i32,
-    // TODO: make this a proper enum instead of a u32 of mystery
     touch_type: ProjectMTouchType,
 ) {
-    unsafe { ffi::projectm_touch(instance.0, x, y, pressure, touch_type.try_into().unwrap()) };
+    unsafe { ffi::projectm_touch(instance.0, x, y, pressure, touch_type) };
 }
 
 pub(crate) fn touch_drag(instance: &mut ProjectMHandle, x: f32, y: f32, pressure: i32) {
@@ -339,7 +346,7 @@ pub(crate) fn pcm_get_max_samples() -> u32 {
     unsafe { ffi::projectm_pcm_get_max_samples() }
 }
 
-pub(crate) fn pcm_add_float(instance: &mut ProjectMHandle, samples: Vec<f32>, channels: u32) {
+pub(crate) fn pcm_add_float(instance: &mut ProjectMHandle, samples: &[f32], channels: u32) {
     assert!(
         samples.len() <= pcm_get_max_samples() as usize,
         "Number of samples is greater than max samples"
@@ -355,7 +362,7 @@ pub(crate) fn pcm_add_float(instance: &mut ProjectMHandle, samples: Vec<f32>, ch
     }
 }
 
-pub(crate) fn pcm_add_int16(instance: &mut ProjectMHandle, samples: Vec<i16>, channels: u32) {
+pub(crate) fn pcm_add_int16(instance: &mut ProjectMHandle, samples: &[i16], channels: u32) {
     assert!(
         samples.len() <= pcm_get_max_samples() as usize,
         "Number of samples is greater than max samples"
@@ -371,7 +378,7 @@ pub(crate) fn pcm_add_int16(instance: &mut ProjectMHandle, samples: Vec<i16>, ch
     }
 }
 
-pub(crate) fn pcm_add_uint8(instance: &mut ProjectMHandle, samples: Vec<u8>, channels: u32) {
+pub(crate) fn pcm_add_uint8(instance: &mut ProjectMHandle, samples: &[u8], channels: u32) {
     assert!(
         samples.len() <= pcm_get_max_samples() as usize,
         "Number of samples is greater than max samples"
@@ -393,13 +400,12 @@ pub(crate) fn pcm_add_uint8(instance: &mut ProjectMHandle, samples: Vec<u8>, cha
 
 pub(crate) fn write_debug_image_on_next_frame(
     instance: &ProjectMHandle,
-    output_file: Option<&String>,
+    output_file: Option<&str>,
 ) {
     // Transform the Rust String into a C String - this is needed due to the
     // fact that Rust Strings are not null terminated.
     let path = output_file.map(|p| {
-        CString::new(p.as_str())
-            .expect("Provided output file path could not be converted to a C string")
+        CString::new(p).expect("Provided output file path could not be converted to a C string")
     });
 
     // `path` will be alive until the end of the scope, so we can safely get

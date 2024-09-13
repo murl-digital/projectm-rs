@@ -15,6 +15,10 @@
 mod inner;
 
 pub struct ProjectMHandle(pub(crate) *mut inner::projectm);
+// SAFETY: since the pointer is a private field, the only way to get access to it is through the struct
+unsafe impl Send for ProjectMHandle {}
+// SAFETY: this is probably fine? because of the mutable reference requirements.
+unsafe impl Sync for ProjectMHandle {}
 
 impl Drop for ProjectMHandle {
     fn drop(&mut self) {
@@ -51,9 +55,9 @@ pub enum TouchType {
     DerivitaveLine,
 }
 
-impl Into<ProjectMTouchType> for TouchType {
-    fn into(self) -> ProjectMTouchType {
-        match self {
+impl From<TouchType> for ProjectMTouchType {
+    fn from(val: TouchType) -> Self {
+        match val {
             TouchType::Random => TOUCH_TYPE_RANDOM,
             TouchType::Circle => TOUCH_TYPE_CIRCLE,
             TouchType::RadialBlob => TOUCH_TYPE_RADIAL_BLOB,
@@ -71,6 +75,12 @@ pub struct ProjectM {
     instance: ProjectMHandle,
 }
 
+impl Default for ProjectM {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProjectM {
     pub fn new() -> Self {
         let instance = ProjectMHandle(inner::create());
@@ -82,7 +92,7 @@ impl ProjectM {
         &self.instance
     }
 
-    pub fn instance_mut(&mut self) -> &ProjectMHandle {
+    pub fn instance_mut(&mut self) -> &mut ProjectMHandle {
         &mut self.instance
     }
 
